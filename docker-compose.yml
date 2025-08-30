@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  drone-delivery-pg:
+    image: bitnami/postgresql:latest
+    restart: always
+    container_name: drone-delivery-pg
+    ports: 
+     - '5432:5432'
+    environment:
+     POSTGRES_USER: docker
+     POSTGRES_PASSWORD: docker
+     POSTGRES_DB: droneApidb
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+volumes:
+  pgdata:

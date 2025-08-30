@@ -1,0 +1,66 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Drone {
+  id  String @id @default(uuid())
+  baseLongitude Decimal
+  baseLatitude Decimal
+  battery   Float
+  status    DroneStatus @default(IDLE)
+  
+
+  Delivery Delivery[]
+}
+
+model Order {
+  id            String      @id @default(uuid())
+  latitude      Decimal
+  longitude     Decimal
+  packageWeight Decimal
+  priority      Priority     @default(LOW)
+  status        OrderStatus  @default(PENDING)
+  createdAt     DateTime     @default(now())
+
+  deliveryId    String?
+  delivery      Delivery?    @relation(fields: [deliveryId], references: [id])
+}
+
+model Delivery {
+  id        String   @id @default(uuid())
+  droneId   String
+  drone     Drone    @relation(fields: [droneId], references: [id])
+  orders    Order[]
+  startedAt DateTime @default(now())
+  finishedAt DateTime?
+}
+
+enum Priority {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum DroneStatus {
+  IDLE
+  LOADING
+  IN_FLIGHT
+  RETURNING
+}
+
+enum OrderStatus {
+  PENDING
+  ALLOCATED
+  DELIVERED
+}
