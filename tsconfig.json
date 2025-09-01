@@ -18,6 +18,10 @@
     // "lib": ["esnext"],
     // "types": ["node"],
     // and npm install -D @types/node
+     "baseUrl": "src",
+    "paths": {
+      "@/*": ["*"]
+    },
 
     // Other Outputs
     "sourceMap": true,

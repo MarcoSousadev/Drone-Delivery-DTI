@@ -1,99 +1,107 @@
-import { prisma } from "../../../infra/prisma/prisma.ts";
-import { PriorityQueue } from "../../../core/queue/priorityQueue.ts";
-import type { Order } from "@prisma/client";
+import type { OrdersRepository } from "../repositories/ordersRepository.ts";
+import type { DronesRepository } from "../../drones/repositories/drones-repository.ts";
+import type { DeliveryRepository } from "../../delivery/repository/delivery-repository.ts";
 
-// Drone de exemplo (pode ser buscado do banco futuramente)
-const drone = {
-  id: "some-drone-id",
-  capacity: 50, // kg
-  maxDistance: 20, // km
+import { PriorityQueue } from "@/core/queue/priorityQueue.ts";
+import { routeDistanceKm } from "@/core/utils/routeDistance.ts";
+
+const DRONE_CAPACITY_KG = 2.3;
+const DEFAULT_RANGE_KM = 12;
+
+const asNumber = (v: any) =>
+  v == null ? 0 : typeof v === "number" ? v : typeof v.toNumber === "function" ? v.toNumber() : Number(v);
+
+type AllocationReport = {
+  deliveriesCreated: number;
+  assignedOrders: number;
+  skippedOrders: string[];
 };
 
-// Função para calcular distância incremental usando Haversine
-function calculateDistance(existingOrders: Order[], newOrder: Order): number {
-  const R = 6371;
-  const toRad = (deg: number) => (deg * Math.PI) / 180;
+export class AllocateOrdersUseCase {
+  constructor(
+    private readonly ordersRepository: OrdersRepository,
+    private readonly dronesRepository: DronesRepository,
+    private readonly deliveryRepository: DeliveryRepository
+  ) {}
 
-  // base inicial
-  let fromLat = 0;
-  let fromLon = 0;
-
-  if (existingOrders.length > 0) {
-    const lastOrder = existingOrders[existingOrders.length - 1];
-    if (!lastOrder) {
-      throw new Error("Last order is undefined");
+  public async execute(): Promise<AllocationReport> {
+    const pendingOrders = await this.ordersRepository.findManyPending("ALL"); // ajuste conforme seu repo
+    if (!pendingOrders || pendingOrders.length === 0) {
+      return { deliveriesCreated: 0, assignedOrders: 0, skippedOrders: [] };
     }
-    fromLat = lastOrder.latitude.toNumber();
-    fromLon = lastOrder.longitude.toNumber();
-  }
 
-  const toLat = newOrder.latitude.toNumber();
-  const toLon = newOrder.longitude.toNumber();
+    const drones = await this.dronesRepository.listAll?.();
+    if (!drones || drones.length === 0) {
+      return { deliveriesCreated: 0, assignedOrders: 0, skippedOrders: pendingOrders.map(o => o.id) };
+    }
 
-  const dLat = toRad(toLat - fromLat);
-  const dLon = toRad(toLon - fromLon);
+    let deliveriesCreated = 0;
+    let assignedOrders = 0;
+    const skippedOrders: string[] = [];
 
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(fromLat)) * Math.cos(toRad(toLat)) * Math.sin(dLon / 2) ** 2;
+    // pool inicial de pedidos
+    let pool = [...pendingOrders];
 
-  return 2 * R * Math.asin(Math.sqrt(a));
-}
+    for (const drone of drones) {
+      if (drone.status !== "IDLE") continue;
 
-export async function allocateOrders() {
-  // 1) Buscar pedidos pendentes do banco
-  const pendingOrders = await prisma.order.findMany({
-    where: { status: "PENDING" },
-  });
+      const base = {
+        latitude: asNumber((drone as any).baseLatitude ?? 0),
+        longitude: asNumber((drone as any).baseLongitude ?? 0),
+      };
+      const rangeKm = asNumber((drone as any).rangeKm ?? DEFAULT_RANGE_KM);
 
-  const priorityQueue = new PriorityQueue(0, 0); // base em (0,0)
-  const sortedOrders = priorityQueue.sort(pendingOrders);
+      // ordenar por prioridade/peso/distância
+      const pq = new PriorityQueue(base.latitude, base.longitude);
+      const sorted = pq.sort(pool);
 
-  // 3) Criar deliveries diretamente no banco
-  while (sortedOrders.length > 0) {
-    const deliveryOrders: Order[] = [];
+      const chosen: typeof pool = [];
+      let totalWeight = 0;
 
-    for (let i = 0; i < sortedOrders.length; i++) {
-      const currentOrder = sortedOrders[i];
+      for (const order of sorted) {
+        const w = asNumber(order.packageWeight);
+        if (w <= 0) continue;
+        if (totalWeight + w > DRONE_CAPACITY_KG) continue;
 
-      if (!currentOrder) continue
+        const stops = [...chosen, order].map((o) => ({
+          latitude: asNumber(o.latitude),
+          longitude: asNumber(o.longitude),
+        }));
 
-      // soma peso atual + novo pedido
-      const newWeight =
-        deliveryOrders.reduce((sum, o) => sum + o.packageWeight.toNumber(), 0) +
-        currentOrder.packageWeight.toNumber();
+        const tripDist = routeDistanceKm(base, stops);
+        if (tripDist > rangeKm) continue;
 
-      // soma distância incremental
-      const newDistance =
-        deliveryOrders.reduce(
-          (sum, o, idx, arr) =>
-            sum + calculateDistance(idx === 0 ? [] : arr.slice(0, idx), o),
-          0
-        ) + calculateDistance(deliveryOrders, currentOrder);
-
-      if (newWeight <= drone.capacity && newDistance <= drone.maxDistance) {
-        deliveryOrders.push(currentOrder);
-        sortedOrders.splice(i, 1);
-        i--;
+        chosen.push(order);
+        totalWeight += w;
       }
+
+      if (chosen.length === 0) continue;
+
+      // criar delivery para esse drone
+      const delivery = await this.deliveryRepository.create({
+        droneId: drone.id,
+        orderIds: chosen.map(o => o.id),
+        startedAt: new Date(),
+      });
+
+      // atualizar status dos pedidos
+      for (const o of chosen) {
+        await this.ordersRepository.updateStatus(o.id, "ALLOCATED");
+      }
+
+      // atualizar drone
+      await this.dronesRepository.updateStatus(drone.id, "LOADING");
+
+      deliveriesCreated++;
+      assignedOrders += chosen.length;
+
+      // tirar escolhidos do pool
+      pool = pool.filter(o => !chosen.some(c => c.id === o.id));
     }
 
-    // Persistir Delivery no banco
-    await prisma.delivery.create({
-      data: {
-        droneId: drone.id,
-        orders: {
-          connect: deliveryOrders.map((o) => ({ id: o.id })),
-        },
-      },
-    });
+    // tudo que sobrou no pool foram pedidos não alocados
+    skippedOrders.push(...pool.map(o => o.id));
 
-    // Atualizar status das Orders para ALLOCATED
-    await prisma.order.updateMany({
-      where: { id: { in: deliveryOrders.map((o) => o.id) } },
-      data: { status: "ALLOCATED" },
-    });
+    return { deliveriesCreated, assignedOrders, skippedOrders };
   }
-
-  return { message: "Orders allocated to deliveries successfully" };
 }

@@ -17,7 +17,6 @@ model Drone {
   id  String @id @default(uuid())
   baseLongitude Decimal
   baseLatitude Decimal
-  battery   Float
   status    DroneStatus @default(IDLE)
   
 

@@ -27,9 +27,6 @@ export class CreateOrderUseCase{
    throw new Error('Package Weight is higher than supported by the drones')
   } 
 
-    //  const prismaOrdersRepositoru = new PrismaOrdersRepository()
-
-
      await this.ordersRepository.create({
       latitude,
       longitude,

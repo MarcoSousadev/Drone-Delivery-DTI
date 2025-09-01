@@ -1,10 +1,13 @@
 import { fastify } from 'fastify'
-import { prisma } from './infra/prisma/prisma.ts'
-import z from 'zod'
-import { createOrder } from './modules/orders/controllers/create-order.ts'
 import { appOrderRoutes } from './routes/orders.routes.ts'
+import { appDroneRoutes } from './routes/drones.routes.ts'
+import { appDeliveryRoutes } from './routes/delivery.routes.ts'
+import { appSimulationRoutes } from './routes/simulation.routes.ts'
 
 export const app = fastify()
 
 
 app.register(appOrderRoutes)
+app.register(appDroneRoutes)
+app.register(appDeliveryRoutes)
+app.register(appSimulationRoutes)
