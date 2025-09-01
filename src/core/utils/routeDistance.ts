@@ -1,52 +1,45 @@
 import { haversineKm } from "./harversineKm.ts";
 
-export interface Coordinate {
-  latitude: number;
-  longitude: number;
-}
+type Point = { latitude: number | { toNumber(): number }; longitude: number | { toNumber(): number } };
 
+const asNumber = (v: any) =>
+  v == null ? 0 : typeof v === "number" ? v : typeof v.toNumber === "function" ? v.toNumber() : Number(v);
 
-export function routeDistanceKm(base: Coordinate, stops: Coordinate[]): number {
-  if (stops.length === 0) return 0;
+/**
+ * Calcula a distância total (ida + entre paradas + retorno opcional).
+ * Por padrão NÃO lança erro. Se quiser forçar limite, passe { maxDistanceKm }.
+ */
+export function routeDistanceKm(
+  base: Point,
+  stops: Point[],
+  options?: { includeReturn?: boolean; maxDistanceKm?: number }
+): number {
+  const includeReturn = options?.includeReturn ?? true;
 
-  const remaining = [...stops];
-  let current = base;
-  let dist = 0;
+  let distanceKm = 0;
+  let currentLat = asNumber(base.latitude);
+  let currentLon = asNumber(base.longitude);
 
-  while (remaining.length > 0) {
-    let bestIdx = 0;
-    let best = Infinity;
-
-    for (let i = 0; i < remaining.length; i++) {
-      const point = remaining[i]
-      if(!point) continue
-
-      const d = haversineKm(
-        current.latitude,
-        current.longitude,
-        point.latitude,
-        point.longitude
-      );
-      if (d < best) {
-        best = d;
-        bestIdx = i;
-      }
-    }
-
-    const candidate = remaining[bestIdx];
-    if (!candidate) break;  
-    
-
-    dist += best;
-    current = candidate;
-    remaining.splice(bestIdx, 1);
+  for (const stop of stops) {
+    const nextLat = asNumber(stop.latitude);
+    const nextLon = asNumber(stop.longitude);
+    distanceKm += haversineKm(currentLat, currentLon, nextLat, nextLon);
+    currentLat = nextLat;
+    currentLon = nextLon;
   }
 
-  // volta pra base
-  dist += haversineKm(current.latitude, current.longitude, base.latitude, base.longitude);
-
-  if(dist > 12) {
-    throw new Error("Not allowed to fly distance futher than 12km by batery issues.")
+  if (includeReturn && stops.length > 0) {
+    distanceKm += haversineKm(
+      currentLat,
+      currentLon,
+      asNumber(base.latitude),
+      asNumber(base.longitude),
+    );
   }
-  return dist;
+
+  if (options?.maxDistanceKm != null && distanceKm > options.maxDistanceKm) {
+    throw new Error(`Route exceeds maxDistanceKm (${distanceKm.toFixed(2)} km > ${options.maxDistanceKm} km)`);
+  }
+
+  return distanceKm;
 }

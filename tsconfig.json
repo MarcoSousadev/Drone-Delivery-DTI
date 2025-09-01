@@ -18,9 +18,9 @@
     // "lib": ["esnext"],
     // "types": ["node"],
     // and npm install -D @types/node
-     "baseUrl": "src",
-    "paths": {
-      "@/*": ["*"]
+     "baseUrl": ".",
+      "paths": {
+      "@/*": ["src/*"]
     },
 
     // Other Outputs

@@ -1,66 +1,47 @@
-// src/core/queue/priorityQueue.ts
-import { Priority } from "@prisma/client";
-import type { Order } from "@prisma/client";
+import { haversineKm } from "@/core/utils/harversineKm.ts";
 
-// Haversine para distância real (em km)
-function haversineDistance(
-  lat1: number,
-  lon1: number,
-  lat2: number,
-  lon2: number
-): number {
-  const R = 6371; // raio da Terra em km
-  const toRad = (deg: number) => (deg * Math.PI) / 180;
+const asNumber = (v: any) =>
+  v == null ? 0 : typeof v === "number" ? v : typeof v.toNumber === "function" ? v.toNumber() : Number(v);
 
-  const dLat = toRad(lat2 - lat1);
-  const dLon = toRad(lon2 - lon1);
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) *
-      Math.cos(toRad(lat2)) *
-      Math.sin(dLon / 2) ** 2;
-
-  return 2 * R * Math.asin(Math.sqrt(a));
-}
+const priorityRank: Record<"HIGH" | "MEDIUM" | "LOW", number> = {
+  HIGH: 3,
+  MEDIUM: 2,
+  LOW: 1,
+};
 
 export class PriorityQueue {
-  private priorityOrder: Record<Priority, number> = {
-    HIGH: 3,
-    MEDIUM: 2,
-    LOW: 1,
-  };
+  constructor(private readonly baseLatitude: number, private readonly baseLongitude: number) {}
 
-  constructor(private baseLat = 0, private baseLon = 0) {}
+  private distanceFromBase(latitude: any, longitude: any) {
+    return haversineKm(this.baseLatitude, this.baseLongitude, asNumber(latitude), asNumber(longitude));
+  }
 
-  sort(orders: Order[]): Order[] {
-    return orders.sort((orderA, orderB) => {
-      // 1º prioridade
-      if (this.priorityOrder[orderA.priority] !== this.priorityOrder[orderB.priority]) {
-        return this.priorityOrder[orderB.priority] - this.priorityOrder[orderA.priority];
-      }
+  public sort<T extends {
+    priority: "HIGH" | "MEDIUM" | "LOW";
+    packageWeight: any;
+    latitude: any;
+    longitude: any;
+    createdAt?: Date;
+  }>(orders: T[]): T[] {
+    return [...orders].sort((orderA, orderB) => {
+      // 1) prioridade
+      const prioDiff = priorityRank[orderB.priority] - priorityRank[orderA.priority];
+      if (prioDiff !== 0) return prioDiff;
 
-      // 2º peso (maior primeiro)
-      if (!orderA.packageWeight.equals(orderB.packageWeight)) {
-        return (
-          orderB.packageWeight.toNumber() - orderA.packageWeight.toNumber()
-        );
-      }
+      // 2) peso (maior primeiro)
+      const weightDiff = asNumber(orderB.packageWeight) - asNumber(orderA.packageWeight);
+      if (weightDiff !== 0) return weightDiff;
 
-      // 3º distância da base
-      const distanceOrderA = haversineDistance(
-        this.baseLat,
-        this.baseLon,
-        orderA.latitude.toNumber(),
-        orderA.longitude.toNumber()
-      );
-      const distanceOrderB = haversineDistance(
-        this.baseLat,
-        this.baseLon,
-        orderB.latitude.toNumber(),
-        orderB.longitude.toNumber()
-      );
+      // 3) proximidade da base (mais perto primeiro)
+      const distanceOrderA = this.distanceFromBase(orderA.latitude, orderA.longitude);
+      const distanceOrderB = this.distanceFromBase(orderB.latitude, orderB.longitude);
+      const distDiff = distanceOrderA - distanceOrderB;
+      if (distDiff !== 0) return distDiff;
 
-      return distanceOrderA - distanceOrderB;
+      // 4) desempate por data (mais antigo primeiro)
+      const timeA = orderA.createdAt ? orderA.createdAt.getTime() : 0;
+      const timeB = orderB.createdAt ? orderB.createdAt.getTime() : 0;
+      return timeA - timeB;
     });
   }
 }

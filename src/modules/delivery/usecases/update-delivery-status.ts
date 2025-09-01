@@ -7,8 +7,8 @@ type UpdateAction = "START" | "FINISH" | "CANCEL";
 type UpdateDeliveryStatusInput = {
   deliveryId: string;
   action: UpdateAction;
-  finishedAt?: Date;
-  startedAt?: Date;
+  finishedAt?: Date | undefined;
+  startedAt?: Date | undefined;
 };
 
 type DeliverySummaryDTO = {
