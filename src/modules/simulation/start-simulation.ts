@@ -1,8 +1,8 @@
-import { DroneSimulation } from "./domain/simulation.ts";
-import { SimulationState } from "./domain/simulation-state.ts";
+import { DroneSimulation } from "./simulation-utils/simulation.ts";
+import { SimulationState } from "./simulation-utils/simulation-state.ts";
 
 interface StartSimulationRequest {
-  drones: string[]; // lista de IDs de drones
+  drones: string[]; 
 }
 
 export class StartSimulation {

@@ -20,3 +20,20 @@ Simulador de entregas com drones, aplicando regras de negócio reais de logísti
 git clone https://github.com/marcosousadev/drone_delivery_simulator.git
 cd drone_delivery_simulator
 npm install
+```
+### Subir banco com Docker
+```bash
+docker compose up -d
+```
+### Instalar Dependências
+```bash
+npm install
+```
+### Migrar banco
+```bash
+npm run migrate:dev
+```
+### Testes + cobertura
+```bash
+npm run test
+```

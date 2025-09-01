@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8"/>
+  <title>Drone Delivery Dashboard</title>
+  <style>
+    body{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; margin:24px; color:#222;}
+    .grid{display:grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap:16px; margin-bottom:24px;}
+    .card{border:1px solid #e5e7eb; border-radius:10px; padding:16px; background:#fff;}
+    .metric{font-size:14px; color:#6b7280;}
+    .value{font-size:28px; font-weight:700; margin-top:6px;}
+    pre{background:#0b1020; color:#e5e7eb; padding:16px; border-radius:10px; overflow:auto;}
+    table{width:100%; border-collapse:collapse; margin-top:8px;}
+    th,td{padding:8px; border-bottom:1px solid #e5e7eb; text-align:left; font-size:14px;}
+    th{background:#f8fafc;}
+    .muted{color:#6b7280; font-size:12px;}
+  </style>
+</head>
+<body>
+  <h1>Drone Delivery Dashboard</h1>
+  <div class="grid">
+    <div class="card">
+      <div class="metric">Quantidade de entregas</div>
+      <div class="value">{{deliveriesCount}}</div>
+    </div>
+    <div class="card">
+      <div class="metric">Tempo médio por entrega (min)</div>
+      <div class="value">{{avgDeliveryMinutes}}</div>
+    </div>
+    <div class="card">
+      <div class="metric">Drone mais eficiente</div>
+      <div class="value">{{topDroneId}}</div>
+    </div>
+    <div class="card">
+      <div class="metric">Distância total (km) • Peso total (kg)</div>
+      <div class="value">{{totalKm}} km • {{totalWeightKg}} kg</div>
+    </div>
+  </div>
+
+  <h2>Mapa ASCII das Entregas</h2>
+  <pre>{{asciiMap}}</pre>
+  <p class="muted">Observação: projeção relativa aos dados do período e escala do grid.</p>
+
+  <h2>Ranking de Drones</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Drone</th>
+        <th>Viagens</th>
+        <th>Km Totais</th>
+        <th>Km/Viagem</th>
+        <th>Peso Total (kg)</th>
+        <th>Tempo Total (min)</th>
+        <th>Tempo Médio (min)</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{droneRows}}
+    </tbody>
+  </table>
+</body>
+</html>

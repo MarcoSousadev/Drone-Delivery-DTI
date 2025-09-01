@@ -19,7 +19,7 @@ export async function assignDelivery(request: FastifyRequest, reply: FastifyRepl
         const assignDeliveryUseCase = new AssignDeliveryUseCase(prismaOrdersRepository,prismaDronesRepository,prismaDeliveryRepository)
     const result = await assignDeliveryUseCase.execute({ orderId });
 
-    // segue seu padrão: 201 quando cria algo
+
     return reply.status(201).send(result);
   } catch (err: any) {
     return reply.status(400).send({ message: err?.message ?? "Failed to assign delivery" });

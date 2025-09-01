@@ -1,5 +1,5 @@
-import { DroneSimulation } from "./domain/simulation.ts";
-import { SimulationState } from "./domain/simulation-state.ts";
+import { DroneSimulation } from "./simulation-utils/simulation.ts";
+import { SimulationState } from "./simulation-utils/simulation-state.ts";
 
 export class AdvanceSimulation {
   execute(drones: DroneSimulation[]): DroneSimulation[] {

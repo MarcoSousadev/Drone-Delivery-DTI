@@ -1,8 +1,6 @@
 import type { FastifyRequest, FastifyReply } from 'fastify'
 import z from 'zod'
-import { prisma } from '../../../infra/prisma/prisma.ts'
 import { CreateOrderUseCase } from '../usecases/create.ts'
-import { error } from 'console'
 import { PrismaOrdersRepository } from '../repositories/prisma-orders-repository.ts'
 
 export async function createOrder(request: FastifyRequest, reply: FastifyReply ) {

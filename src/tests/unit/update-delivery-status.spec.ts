@@ -5,7 +5,7 @@ import { InMemoryDronesRepository } from "../in-memory-repository/in-memory-dron
 import { InMemoryOrdersRepository } from "../in-memory-repository/in-memory-orders-repository.ts";
 
 describe("UpdateDeliveryStatusUseCase", () => {
-  it("START muda drone para IN_FLIGHT", async () => {
+  it("START changes drone to IN_FLIGHT", async () => {
     const ordersRepo = new InMemoryOrdersRepository();
     const dronesRepo = new InMemoryDronesRepository();
     const deliveryRepo = new InMemoryDeliveryRepository();
@@ -21,7 +21,7 @@ describe("UpdateDeliveryStatusUseCase", () => {
     expect(response.delivery.id).toBe(created.id);
   });
 
-  it("FINISH marca orders como DELIVERED e drone como RETURNING", async () => {
+  it("FINISH marks orders as DELIVERED and drone as RETURNING", async () => {
     const ordersRepository = new InMemoryOrdersRepository();
     const dronesRepository = new InMemoryDronesRepository();
     const deliveryRepository = new InMemoryDeliveryRepository();
